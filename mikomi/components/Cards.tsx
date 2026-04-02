@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ChevronUp, Star } from 'lucide-react';
-import Navbar from './Navbar'
+import Navbar from './Navbar';
 import searchPic from './images/searchPic.jpeg';
 import SearchBar from './SearchBar';
 import Footer from './Footer';
@@ -26,28 +26,16 @@ interface MangaAttributes {
   ageRating: string;
 }
 
-//edit later for genres
-interface CategoryData {
-  id: string;
-  type: string;
-  attributes: {
-    title: string;
-    slug: string;
-  };
-}
-
 interface MangaData {
   id: string;
-  type: string;
   attributes: MangaAttributes;
 }
 
 interface MangaCardProps {
   manga: MangaData;
-  onClick?: (manga: MangaData) => void;
 }
 
-const MangaCard: React.FC<MangaCardProps> = ({ manga, onClick }) => {
+const MangaCard: React.FC<MangaCardProps> = ({ manga }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -83,11 +71,11 @@ const MangaCard: React.FC<MangaCardProps> = ({ manga, onClick }) => {
 
   // Sample genres for demo - in real app, you'd get these from the API include
   const sampleGenres = ['Action', 'Adventure', 'Shounen', 'Drama'];
+  const normalizedRating = parseFloat(averageRating || '0') / 10;
 
   return (
     <div 
       className="bg-primary rounded-lg overflow-hidden hover:transform hover:scale-105 transition-all duration-300 cursor-pointer shadow-lg"
-      onClick={() => onClick?.(manga)}
     >
       {/* Image Section with Purple Gradient */}
       <div className="h-28.5 relative bg-gradient-to-br from-gray-300 to-gray-100 flex items-center justify-center">
@@ -138,9 +126,8 @@ const MangaCard: React.FC<MangaCardProps> = ({ manga, onClick }) => {
         {/* Rating */}
         <div className="flex items-center gap-1 text-yellow-400">
           {Array.from({ length: 5 }).map((_, i) => {
-            const rating = parseFloat(averageRating) / 10;
-            const filled = i < Math.floor(rating);
-            const halfFilled = i === Math.floor(rating) && rating % 1 >= 0.5;
+            const filled = i < Math.floor(normalizedRating);
+            const halfFilled = i === Math.floor(normalizedRating) && normalizedRating % 1 >= 0.5;
             
             return (
               <Star 
@@ -166,8 +153,8 @@ const Pagination: React.FC<{
 }> = ({ currentPage, totalPages, onPageChange }) => {
   const getVisiblePages = () => {
     const delta = 2;
-    const range = [];
-    const rangeWithDots = [];
+    const range: number[] = [];
+    const rangeWithDots: (number | '...')[] = [];
 
     for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
       range.push(i);
@@ -272,7 +259,7 @@ const SearchResultsPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [mangas, setMangas] = useState<MangaData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [totalResults, setTotalResults] = useState(247);
+  const [totalResults, setTotalResults] = useState(0);
   const navigate = useNavigate();
   
   const mangasPerPage = 12;
@@ -327,10 +314,6 @@ const SearchResultsPage: React.FC = () => {
     navigate(`/search?q=${encodeURIComponent(query)}`); //update the url dynamically
   };
 
-  const handleMangaClick = (manga: MangaData) => {
-    console.log('Clicked manga:', manga.attributes.canonicalTitle);
-  };
-
   return (
   <div className="bg-black w-full min-h-screen font-body">
     <Navbar relative={true}/>
@@ -364,7 +347,6 @@ const SearchResultsPage: React.FC = () => {
               <MangaCard
                 key={manga.id}
                 manga={manga}
-                onClick={handleMangaClick}
               />
             ))}
           </div>
