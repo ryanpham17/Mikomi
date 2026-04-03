@@ -47,10 +47,66 @@ interface MangaAttributes {
 interface MangaData {
   id: string;
   attributes: MangaAttributes;
+  /** Resolved from `relationships.genres` + `included` on the Kitsu response. */
+  genreNames: string[];
 }
 
 interface MangaCardProps {
   manga: MangaData;
+}
+
+/** Kitsu compound document pieces we need to resolve genre tags per manga. */
+interface KitsuResourceIdentifier {
+  type: string;
+  id: string;
+}
+
+interface KitsuMangaRaw {
+  id: string;
+  type: string;
+  attributes: MangaAttributes;
+  relationships?: {
+    genres?: { data: KitsuResourceIdentifier[] };
+  };
+}
+
+interface KitsuGenreIncluded {
+  id: string;
+  type: string;
+  attributes: { name: string };
+}
+
+interface KitsuMangaListResponse {
+  data: KitsuMangaRaw[];
+  included?: KitsuGenreIncluded[];
+  meta?: { count?: number };
+}
+
+/** Build `type:id` → genre name from JSON:API `included`. */
+function genreLookupFromIncluded(included: KitsuGenreIncluded[] | undefined): Map<string, string> {
+  const map = new Map<string, string>();
+  if (!included) return map;
+  for (const res of included) {
+    if (res.type === 'genres' && res.attributes?.name) {
+      map.set(`${res.type}:${res.id}`, res.attributes.name);
+    }
+  }
+  return map;
+}
+
+function normalizeKitsuMangas(raw: KitsuMangaListResponse): MangaData[] {
+  const lookup = genreLookupFromIncluded(raw.included);
+  return (raw.data || []).map((item) => {
+    const refs = item.relationships?.genres?.data ?? [];
+    const genreNames = refs
+      .map((ref) => lookup.get(`${ref.type}:${ref.id}`))
+      .filter((name): name is string => Boolean(name));
+    return {
+      id: item.id,
+      attributes: item.attributes,
+      genreNames,
+    };
+  });
 }
 
 // -----------------------------------------------------------------------------
@@ -98,14 +154,13 @@ const MangaCard: React.FC<MangaCardProps> = ({ manga }) => {
     return colors[index % colors.length];
   };
 
-  /**
-   * Placeholder genres — the fetch URL already `include=genres,categories`, but this component
-   * does not yet map `included` relationships into tags. Replace with real data when wiring JSON:API `included`.
-   */
-  const sampleGenres = ['Action', 'Adventure', 'Shounen', 'Drama'];
-
   /** 0–5 star scale for icon fill (half-star when fractional part ≥ 0.5). */
   const normalizedRating = parseFloat(averageRating || '0') / 10;
+
+  /** Match the old sample layout: one compact row of pills (max 4 + optional “+N”). */
+  const maxGenreChips = 4;
+  const visibleGenres = manga.genreNames.slice(0, maxGenreChips);
+  const overflowCount = Math.max(0, manga.genreNames.length - maxGenreChips);
 
   return (
     <div className="bg-primary rounded-lg overflow-hidden hover:transform hover:scale-105 transition-all duration-300 cursor-pointer shadow-lg">
@@ -131,15 +186,28 @@ const MangaCard: React.FC<MangaCardProps> = ({ manga }) => {
       <div className="p-4 bg-primary text-white text-left">
         <h3 className="font-bold text-lg mb-2 text-white">{canonicalTitle}</h3>
 
-        <div className="flex flex-wrap gap-1 mb-3">
-          {sampleGenres.map((genre, index) => (
-            <span
-              key={genre}
-              className={`px-2 py-1 rounded text-xs font-medium ${getGenreColors(index)}`}
-            >
-              {genre}
+        <div className="flex flex-wrap gap-1 mb-3 min-h-[1.75rem] items-center">
+          {visibleGenres.length > 0 ? (
+            <>
+              {visibleGenres.map((genre, index) => (
+                <span
+                  key={`${manga.id}-${genre}-${index}`}
+                  className={`px-2 py-1 rounded text-xs font-medium ${getGenreColors(index)}`}
+                >
+                  {genre}
+                </span>
+              ))}
+              {overflowCount > 0 && (
+                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-600 text-gray-200">
+                  +{overflowCount}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="px-2 py-1 rounded text-xs font-medium bg-gray-700/80 text-gray-400">
+              No genres
             </span>
-          ))}
+          )}
         </div>
 
         <p className="font-medium text-gray-500 text-sm mb-3">{truncateText(synopsis, 100)}</p>
@@ -314,23 +382,25 @@ const SearchResultsPage: React.FC = () => {
    * Kitsu JSON:API request:
    * - `filter[text]` — full-text style filter on manga.
    * - `page[limit]` / `page[offset]` — classic offset pagination (offset = (page-1) * limit).
-   * - `fields[manga]=...` — sparse fieldset to shrink payload.
-   * - `include=genres,categories` — related data (not yet parsed in `MangaCard`).
+   * - Do not use `fields[manga]=...` here: Kitsu omits `relationships` when that sparse fieldset
+   *   is set, so `relationships.genres` disappears and genre chips cannot be resolved from `include`.
+   * - `fields[genres]=name` — keep included genre objects small.
+   * - `include=genres` — compound documents; names resolved in `normalizeKitsuMangas`.
    */
   const fetchMangaFromKitsu = async (query: string, page: number) => {
     try {
       const offset = (page - 1) * mangasPerPage;
       const response = await fetch(
-        `https://kitsu.io/api/edge/manga?filter[text]=${encodeURIComponent(query)}&page[limit]=${mangasPerPage}&page[offset]=${offset}&fields[manga]=canonicalTitle,synopsis,averageRating,startDate,endDate,chapterCount,volumeCount,status,posterImage,popularityRank,ratingRank,ageRating&include=genres,categories`,
+        `https://kitsu.io/api/edge/manga?filter[text]=${encodeURIComponent(query)}&page[limit]=${mangasPerPage}&page[offset]=${offset}&fields[genres]=name&include=genres`,
       );
 
       if (!response.ok) {
         throw new Error('Failed to fetch manga');
       }
 
-      const data = await response.json();
+      const data: KitsuMangaListResponse = await response.json();
       return {
-        mangas: data.data || [],
+        mangas: normalizeKitsuMangas(data),
         totalCount: data.meta?.count || 0,
       };
     } catch (error) {
