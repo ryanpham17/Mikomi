@@ -9,6 +9,7 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import Home from '../components/Home';
 import Cards from '../components/Cards';
+import Manga from '../components/Manga';
 
 const router = createBrowserRouter([
   {
@@ -27,6 +28,14 @@ const router = createBrowserRouter([
       </div>
     ),
   },
+  {
+    path: '/:canonicalTitle/:mangaId',
+    element: (
+      <div>
+        <Manga />
+      </div>
+    ),
+  }
 ]);
 
 function App() {

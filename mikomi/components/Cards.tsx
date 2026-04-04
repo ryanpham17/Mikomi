@@ -13,6 +13,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ChevronUp, Star } from 'lucide-react';
+import { searchManga } from '../src/api/Kitsu';
 import Navbar from './Navbar';
 import searchPic from './images/searchPic.jpeg';
 import SearchBar from './SearchBar';
@@ -114,6 +115,7 @@ function normalizeKitsuMangas(raw: KitsuMangaListResponse): MangaData[] {
 // -----------------------------------------------------------------------------
 
 const MangaCard: React.FC<MangaCardProps> = ({ manga }) => {
+  const navigate = useNavigate();
   // Track poster load so we can fade the image in and show a placeholder until it arrives.
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -163,7 +165,7 @@ const MangaCard: React.FC<MangaCardProps> = ({ manga }) => {
   const overflowCount = Math.max(0, manga.genreNames.length - maxGenreChips);
 
   return (
-    <div className="bg-primary rounded-lg overflow-hidden hover:transform hover:scale-105 transition-all duration-300 cursor-pointer shadow-lg">
+    <div onClick={() => navigate(`/${canonicalTitle}/${manga.id}`)} className="bg-primary rounded-lg overflow-hidden hover:transform hover:scale-105 transition-all duration-300 cursor-pointer shadow-lg">
       {/* Poster area: image fades in over a neutral gradient; emoji fallback if no URL or load error. */}
       <div className="h-28.5 relative bg-gradient-to-br from-gray-300 to-gray-100 flex items-center justify-center">
         {!imageError && posterImage?.medium && (
@@ -364,6 +366,7 @@ const BackToTopButton: React.FC = () => {
 // -----------------------------------------------------------------------------
 
 const SearchResultsPage: React.FC = () => {
+  const navigate = useNavigate();
   // `q` from `/search?q=...` — initial paint uses this; further searches update state + navigate.
   const [searchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
@@ -373,7 +376,6 @@ const SearchResultsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   /** Total matching manga for this text filter (from `meta.count`), drives page count. */
   const [totalResults, setTotalResults] = useState(0);
-  const navigate = useNavigate();
 
   const mangasPerPage = 12;
   const totalPages = Math.max(1, Math.ceil(totalResults / mangasPerPage));
@@ -390,15 +392,7 @@ const SearchResultsPage: React.FC = () => {
   const fetchMangaFromKitsu = async (query: string, page: number) => {
     try {
       const offset = (page - 1) * mangasPerPage;
-      const response = await fetch(
-        `https://kitsu.io/api/edge/manga?filter[text]=${encodeURIComponent(query)}&page[limit]=${mangasPerPage}&page[offset]=${offset}&fields[genres]=name&include=genres`,
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch manga');
-      }
-
-      const data: KitsuMangaListResponse = await response.json();
+      const data = (await searchManga(query, mangasPerPage, offset)) as KitsuMangaListResponse;
       return {
         mangas: normalizeKitsuMangas(data),
         totalCount: data.meta?.count || 0,
@@ -444,7 +438,7 @@ const SearchResultsPage: React.FC = () => {
       <div
         className="bg-cover text-center w-full h-64 mx-auto pt-32"
         style={{
-          backgroundImage: `linear-gradient(rgba(0,0,0,0.89), rgba(0, 0, 0, 1)), url(${searchPic})`,
+          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.89), rgba(0, 0, 0, 1)), url(${searchPic})`,
         }}
       >
         <SearchBar query={searchQuery} onSearch={handleSearch} />

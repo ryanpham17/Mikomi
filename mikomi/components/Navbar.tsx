@@ -6,6 +6,8 @@
  * - `false` → `fixed` top bar (used on Home so the nav stays visible over the full-screen hero).
  */
 
+import { Link } from 'react-router-dom';
+
 const Navbar = ({ relative = false }: { relative?: boolean }) => {
   return (
     <nav
@@ -14,12 +16,12 @@ const Navbar = ({ relative = false }: { relative?: boolean }) => {
       {/* Note: `max-w-7x1` looks like a typo for `max-w-7xl` but left as-is to avoid layout surprises. */}
       <div className="flex items-center justify-between max-w-7x1 mx-auto font-body">
         <div className="flex items-center">
-          <a
+          <Link
             className="cursor-pointer text-2xl hover:text-gray-300 font-extraBold transition-colors duration-410 ease-in-out"
-            href="/"
+            to="/"
           >
             MIKOMI 見込み
-          </a>
+          </Link>
         </div>
 
         <div className="flex items-center">
