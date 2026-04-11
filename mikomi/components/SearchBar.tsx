@@ -9,13 +9,17 @@
  */
 
 import { Search } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 const SearchBar: React.FC<{ query: string; onSearch: (query: string) => void }> = ({
   query,
   onSearch,
 }) => {
   const [searchTerm, setSearchTerm] = useState(query);
+
+  useEffect(() => {
+    setSearchTerm(query);
+  }, [query]);
 
   const handleSubmit = () => {
     onSearch(searchTerm);
@@ -28,12 +32,12 @@ const SearchBar: React.FC<{ query: string; onSearch: (query: string) => void }> 
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="relative group">
+    <div className="mx-auto w-full max-w-2xl px-0 sm:px-0">
+      <div className="group relative">
         <input
           type="text"
           placeholder="Search Manga..."
-          className="w-full px-8 py-4 text-lg bg-white bg-opacity-90 backdrop-blur-sm border-2 border-transparent rounded-full text-primary placeholder-gray-400 focus:outline-none focus:border-white focus:bg-white transition-all duration-300 shadow-2xl font-body font-semibold placeholder:font-semibold"
+          className="w-full rounded-full border-2 border-transparent bg-white/90 py-2.5 pl-3.5 pr-12 text-sm font-body font-semibold text-primary shadow-lg backdrop-blur-sm transition-all duration-300 placeholder:font-semibold placeholder:text-gray-400 focus:border-white focus:bg-white focus:outline-none sm:py-4 sm:pl-8 sm:pr-16 sm:text-lg sm:shadow-2xl"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onKeyDown={handleKeyPress}
@@ -41,10 +45,10 @@ const SearchBar: React.FC<{ query: string; onSearch: (query: string) => void }> 
         <button
           type="button"
           onClick={handleSubmit}
-          className="absolute right-2 top-1/2 transform -translate-y-1/2 p-3 bg-gray-100 hover:bg-gray-200 rounded-full shadow-lg cursor-pointer transition-colors duration-410 ease-in-out"
+          className="absolute right-1 top-1/2 -translate-y-1/2 cursor-pointer rounded-full bg-gray-100 p-1.5 shadow-md transition-colors duration-410 ease-in-out hover:bg-gray-200 sm:right-2 sm:p-3 sm:shadow-lg"
           aria-label="Search"
         >
-          <Search className="w-5 h-5 text-white" />
+          <Search className="h-3.5 w-3.5 text-white sm:h-5 sm:w-5" />
         </button>
       </div>
     </div>

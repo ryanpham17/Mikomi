@@ -2,7 +2,7 @@
  * Cards.tsx — Search results page for MIKOMI.
  *
  * Responsibilities:
- * - Read the `q` query param from the URL (so `/search?q=naruto` is shareable).
+ * - Read `q` and optional `page` from the URL (e.g. `/search?q=naruto&page=8`) so pagination is shareable and restorable.
  * - Fetch manga from the public Kitsu JSON:API (`/api/edge/manga`).
  * - Render a grid of cards with loading skeletons, pagination, footer, and “back to top”.
  *
@@ -11,7 +11,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ChevronUp, Star } from 'lucide-react';
 import { searchManga } from '../src/api/Kitsu';
 import Navbar from './Navbar';
@@ -54,6 +54,8 @@ interface MangaData {
 
 interface MangaCardProps {
   manga: MangaData;
+  /** Full path to restore search (query + page + optional #manga-id) when returning from detail. */
+  returnTo: string;
 }
 
 /** Kitsu compound document pieces we need to resolve genre tags per manga. */
@@ -114,7 +116,17 @@ function normalizeKitsuMangas(raw: KitsuMangaListResponse): MangaData[] {
 // MangaCard — presentation-only; no navigation yet (card is not wired to a detail route).
 // -----------------------------------------------------------------------------
 
-const MangaCard: React.FC<MangaCardProps> = ({ manga }) => {
+/** `/search?q=…&page=…` plus `#manga-{id}` so we can scroll back to the opened card. */
+function buildSearchReturnPath(query: string, page: number, highlightMangaId: string): string {
+  const params = new URLSearchParams();
+  if (query) params.set('q', query);
+  if (page > 1) params.set('page', String(page));
+  const qs = params.toString();
+  const path = qs ? `/search?${qs}` : '/search';
+  return `${path}#manga-${highlightMangaId}`;
+}
+
+const MangaCard: React.FC<MangaCardProps> = ({ manga, returnTo }) => {
   const navigate = useNavigate();
   // Track poster load so we can fade the image in and show a placeholder until it arrives.
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -165,15 +177,29 @@ const MangaCard: React.FC<MangaCardProps> = ({ manga }) => {
   const visibleGenres = manga.genreNames.slice(0, maxGenreChips);
   const overflowCount = Math.max(0, manga.genreNames.length - maxGenreChips);
 
+  const detailPath = `/${encodeURIComponent(canonicalTitle)}/${manga.id}`;
+
   return (
-    <div onClick={() => navigate(`/${canonicalTitle}/${manga.id}`)} className="bg-primary rounded-lg overflow-hidden hover:transform hover:scale-105 transition-all duration-300 cursor-pointer shadow-lg">
+    <div
+      id={`manga-card-${manga.id}`}
+      role="link"
+      tabIndex={0}
+      onClick={() => navigate(detailPath, { state: { returnTo } })}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          navigate(detailPath, { state: { returnTo } });
+        }
+      }}
+      className="mx-auto w-full max-w-[min(100%,20rem)] cursor-pointer overflow-hidden rounded-lg bg-primary shadow-lg transition-all duration-300 hover:transform sm:mx-0 sm:max-w-none sm:hover:scale-[1.02] md:hover:scale-105"
+    >
       {/* Poster area: image fades in over a neutral gradient; emoji fallback if no URL or load error. */}
-      <div className="h-28.5 relative bg-gradient-to-br from-gray-300 to-gray-100 flex items-center justify-center">
+      <div className="relative h-36 overflow-hidden bg-gradient-to-br from-gray-300 to-gray-100 sm:h-52 md:h-60 lg:h-28.5">
         {!imageError && posterImage?.medium && (
           <img
             src={posterImage.medium}
             alt={canonicalTitle}
-            className={`w-full h-full object-cover transition-opacity duration-300 ${
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
               imageLoaded ? 'opacity-30' : 'opacity-0'
             }`}
             onLoad={handleImageLoad}
@@ -182,46 +208,52 @@ const MangaCard: React.FC<MangaCardProps> = ({ manga }) => {
         )}
 
         {(!imageLoaded || imageError) && (
-          <div className="h-28.5 text-white text-4xl content-center">📚</div>
+          <div className="absolute inset-0 flex items-center justify-center text-3xl text-white sm:text-4xl">
+            📚
+          </div>
         )}
       </div>
 
-      <div className="p-4 bg-primary text-white text-left">
-        <h3 className="font-bold text-lg mb-2 text-white">{canonicalTitle}</h3>
+      <div className="bg-primary p-2.5 text-left text-white sm:p-4">
+        <h3 className="mb-1.5 line-clamp-2 text-sm font-bold leading-snug text-white sm:mb-2 sm:text-lg">
+          {canonicalTitle}
+        </h3>
 
-        <div className="flex flex-wrap gap-1 mb-3 min-h-[1.75rem] items-center">
+        <div className="mb-2 flex min-h-[1.5rem] flex-wrap items-center gap-1 sm:mb-3 sm:min-h-[1.75rem]">
           {visibleGenres.length > 0 ? (
             <>
               {visibleGenres.map((genre, index) => (
                 <span
                   key={`${manga.id}-${genre}-${index}`}
-                  className={`px-2 py-1 rounded text-xs font-medium ${getGenreColors(index)}`}
+                  className={`rounded px-1.5 py-0.5 text-[0.65rem] font-medium sm:px-2 sm:py-1 sm:text-xs ${getGenreColors(index)}`}
                 >
                   {genre}
                 </span>
               ))}
               {overflowCount > 0 && (
-                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-600 text-gray-200">
+                <span className="rounded bg-gray-600 px-1.5 py-0.5 text-[0.65rem] font-medium text-gray-200 sm:px-2 sm:py-1 sm:text-xs">
                   +{overflowCount}
                 </span>
               )}
             </>
           ) : (
-            <span className="px-2 py-1 rounded text-xs font-medium bg-gray-700/80 text-gray-400">
+            <span className="rounded bg-gray-700/80 px-1.5 py-0.5 text-[0.65rem] font-medium text-gray-400 sm:px-2 sm:py-1 sm:text-xs">
               No genres
             </span>
           )}
         </div>
 
-        <p className="font-medium text-gray-500 text-sm mb-3">{truncateText(synopsis, 100)}</p>
+        <p className="mb-2 line-clamp-3 text-xs font-medium leading-snug text-gray-500 sm:mb-3 sm:line-clamp-3 sm:text-sm">
+          {truncateText(synopsis, 100)}
+        </p>
 
         <div className="flex items-center gap-0.5">
           {Array.from({ length: 5 }).map((_, i) => {
             const portion = Math.min(1, Math.max(0, starFillTotal - i));
             return (
-              <div key={i} className="relative h-4 w-4 shrink-0 text-yellow-400">
+              <div key={i} className="relative h-3.5 w-3.5 shrink-0 text-yellow-400 sm:h-4 sm:w-4">
                 <Star
-                  className="absolute inset-0 h-4 w-4 fill-none stroke-white text-white"
+                  className="absolute inset-0 h-3.5 w-3.5 fill-none stroke-white text-white sm:h-4 sm:w-4"
                   strokeWidth={1.5}
                 />
                 <div
@@ -230,14 +262,14 @@ const MangaCard: React.FC<MangaCardProps> = ({ manga }) => {
                   aria-hidden
                 >
                   <Star
-                    className="absolute left-0 top-0 h-4 w-4 fill-current stroke-current text-yellow-400"
+                    className="absolute left-0 top-0 h-3.5 w-3.5 fill-current stroke-current text-yellow-400 sm:h-4 sm:w-4"
                     strokeWidth={1.5}
                   />
                 </div>
               </div>
             );
           })}
-          <span className="font-bold text-sm ml-1">{formatRating(averageRating)}/10</span>
+          <span className="ml-1 text-xs font-bold sm:text-sm">{formatRating(averageRating)}/10</span>
         </div>
       </div>
     </div>
@@ -288,14 +320,14 @@ const Pagination: React.FC<{
   };
 
   return (
-    <div className="flex items-center justify-center gap-2 py-8">
+    <div className="flex max-w-full flex-wrap items-center justify-center gap-1 px-3 py-5 sm:gap-2 sm:px-4 sm:py-8">
       <button
         type="button"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="p-2 rounded-lg bg-gray-200 text-white hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="rounded-lg bg-gray-200 p-1.5 text-white hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-50 sm:p-2"
       >
-        <ChevronLeft className="h-5 w-5" />
+        <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
       </button>
 
       {getVisiblePages().map((page, index) => (
@@ -304,11 +336,11 @@ const Pagination: React.FC<{
           key={index}
           onClick={() => typeof page === 'number' && onPageChange(page)}
           disabled={page === '...'}
-          className={`px-3 py-2 rounded-lg font-medium ${
+          className={`min-w-[2rem] rounded-lg px-2 py-1.5 text-sm font-medium sm:min-w-[2.25rem] sm:px-3 sm:py-2 sm:text-base ${
             page === currentPage
               ? 'bg-gray-300 text-white'
               : page === '...'
-                ? 'text-gray-400 cursor-default'
+                ? 'cursor-default text-gray-400'
                 : 'bg-primary text-white hover:bg-gray-400'
           }`}
         >
@@ -320,9 +352,9 @@ const Pagination: React.FC<{
         type="button"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="p-2 rounded-lg bg-gray-200 text-white hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="rounded-lg bg-gray-200 p-1.5 text-white hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-50 sm:p-2"
       >
-        <ChevronRight className="h-5 w-5" />
+        <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
       </button>
     </div>
   );
@@ -359,8 +391,8 @@ const BackToTopButton: React.FC = () => {
   return (
     <button
       type="button"
-      className={`fixed bottom-8 right-8 bg-gray-300 text-white p-3 rounded-full shadow-lg hover:bg-gray-300 transition-all duration-300 ${
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+      className={`fixed bottom-24 right-4 z-50 rounded-full bg-gray-300 p-2.5 text-white shadow-lg transition-all duration-300 hover:bg-gray-300 sm:bottom-8 sm:right-8 sm:p-3 ${
+        isVisible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'
       }`}
       onClick={scrollToTop}
     >
@@ -375,11 +407,12 @@ const BackToTopButton: React.FC = () => {
 
 const SearchResultsPage: React.FC = () => {
   const navigate = useNavigate();
-  // `q` from `/search?q=...` — initial paint uses this; further searches update state + navigate.
   const [searchParams] = useSearchParams();
-  const initialQuery = searchParams.get('q') || '';
-  const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [currentPage, setCurrentPage] = useState(1);
+  const location = useLocation();
+
+  const searchQuery = searchParams.get('q') ?? '';
+  const currentPage = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10) || 1);
+
   const [mangas, setMangas] = useState<MangaData[]>([]);
   const [loading, setLoading] = useState(false);
   /** Total matching manga for this text filter (from `meta.count`), drives page count. */
@@ -432,11 +465,35 @@ const SearchResultsPage: React.FC = () => {
     loadMangas();
   }, [currentPage, searchQuery]);
 
-  /** Called by `SearchBar`; resets to page 1 and keeps the address bar in sync for sharing/bookmarking. */
+  /** After returning from a manga detail, scroll the grid so the card that was opened is in view. */
+  useEffect(() => {
+    if (loading) return;
+    if (!location.hash.startsWith('#manga-')) return;
+    const id = location.hash.replace('#manga-', '');
+    const t = window.setTimeout(() => {
+      document.getElementById(`manga-card-${id}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }, 0);
+    return () => clearTimeout(t);
+  }, [loading, mangas, location.hash]);
+
+  /** Called by `SearchBar`; resets to page 1 and syncs `q` in the URL (page + hash cleared). */
   const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    setCurrentPage(1);
-    navigate(`/search?q=${encodeURIComponent(query)}`);
+    const next = new URLSearchParams();
+    if (query) next.set('q', query);
+    const search = next.toString();
+    navigate({ pathname: '/search', search: search ? `?${search}` : '', hash: '' });
+  };
+
+  /** Updates `page` in the URL and clears any `#manga-…` hash so pagination does not trigger a stale scroll. */
+  const goToPage = (page: number) => {
+    const next = new URLSearchParams(searchParams);
+    if (page <= 1) next.delete('page');
+    else next.set('page', String(page));
+    const search = next.toString();
+    navigate({ pathname: '/search', search: search ? `?${search}` : '', hash: '' });
   };
 
   return (
@@ -444,35 +501,44 @@ const SearchResultsPage: React.FC = () => {
       <Navbar relative={true} />
       {/* Hero strip: CSS gradient overlay on top of imported JPEG for readability behind the input. */}
       <div
-        className="bg-cover text-center w-full h-64 mx-auto pt-32"
+        className="mx-auto w-full bg-cover bg-center px-5 pb-5 pt-20 text-center sm:h-56 sm:px-6 sm:pb-8 sm:pt-28 md:h-64 md:pt-32"
         style={{
           backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.89), rgba(0, 0, 0, 1)), url(${searchPic})`,
         }}
       >
-        <SearchBar query={searchQuery} onSearch={handleSearch} />
+        <div className="mx-auto w-full max-w-[min(100%,22rem)] sm:max-w-2xl">
+          <SearchBar query={searchQuery} onSearch={handleSearch} />
+        </div>
       </div>
 
-      <div className="bg-black w-full space-y-8 pb-16">
-        <div className="max-w-7xl mx-auto px-6">
+      <div className="w-full space-y-5 bg-black pb-32 max-[380px]:pb-40 sm:space-y-8">
+        <div className="mx-auto max-w-7xl px-5 sm:px-6">
           {loading ? (
             // Skeleton grid: pulse placeholders approximating card shape while `fetch` is in flight.
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 justify-items-center gap-5 sm:grid-cols-2 sm:justify-items-stretch sm:gap-5 lg:grid-cols-3 lg:gap-6">
               {Array.from({ length: 9 }).map((_, i) => (
-                <div key={i} className="bg-gray-300 rounded-lg overflow-hidden animate-pulse">
-                  <div className="h-64 bg-gray-300"></div>
+                <div
+                  key={i}
+                  className="w-full max-w-[min(100%,20rem)] overflow-hidden rounded-lg bg-gray-300 animate-pulse sm:max-w-none"
+                >
+                  <div className="h-36 bg-gray-300 sm:h-52 md:h-60 lg:h-28.5" />
                   <div className="p-4">
-                    <div className="h-6 bg-gray-300 rounded mb-2"></div>
-                    <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-gray-300 rounded mb-1"></div>
-                    <div className="h-3 bg-gray-300 rounded w-1/2"></div>
+                    <div className="mb-2 h-6 rounded bg-gray-300" />
+                    <div className="mb-2 h-4 w-3/4 rounded bg-gray-300" />
+                    <div className="mb-1 h-3 rounded bg-gray-300" />
+                    <div className="h-3 w-1/2 rounded bg-gray-300" />
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 justify-items-center gap-5 sm:grid-cols-2 sm:justify-items-stretch sm:gap-5 lg:grid-cols-3 lg:gap-6">
               {mangas.map((manga) => (
-                <MangaCard key={manga.id} manga={manga} />
+                <MangaCard
+                  key={manga.id}
+                  manga={manga}
+                  returnTo={buildSearchReturnPath(searchQuery, currentPage, manga.id)}
+                />
               ))}
             </div>
           )}
@@ -481,7 +547,7 @@ const SearchResultsPage: React.FC = () => {
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          onPageChange={setCurrentPage}
+          onPageChange={goToPage}
         />
 
         <Footer />

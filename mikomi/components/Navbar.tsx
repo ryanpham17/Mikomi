@@ -11,29 +11,26 @@ import { Link } from 'react-router-dom';
 const Navbar = ({ relative = false }: { relative?: boolean }) => {
   return (
     <nav
-      className={`${relative ? 'relative' : 'fixed'} w-full bg-primary text-white px-16 py-5 z-50`}
+      className={`${relative ? 'relative' : 'fixed'} z-50 w-full bg-primary px-5 py-2.5 text-white sm:px-8 sm:py-4 lg:px-12 xl:px-16`}
     >
       {/* Note: `max-w-7x1` looks like a typo for `max-w-7xl` but left as-is to avoid layout surprises. */}
-      <div className="flex items-center justify-between max-w-7x1 mx-auto font-body">
-        <div className="flex items-center">
+      <div className="mx-auto flex max-w-7x1 min-w-0 flex-wrap items-center justify-between gap-2 font-body sm:flex-nowrap sm:gap-4">
+        <div className="flex min-w-0 flex-shrink-0 items-center">
           <Link
-            className="cursor-pointer text-2xl hover:text-gray-300 font-extraBold transition-colors duration-410 ease-in-out"
+            className="cursor-pointer truncate text-base font-extraBold transition-colors duration-410 ease-in-out hover:text-gray-300 sm:text-xl md:text-2xl"
             to="/"
           >
             MIKOMI 見込み
           </Link>
         </div>
 
-        <div className="flex items-center">
-          {/* Reserved for future nav (e.g. chatbot route); empty anchor kept for layout symmetry. */}
-          <a className="cursor-pointer text-lg hover:text-gray-300 font-bold transition-colors duration-410 ease-in-out" />
-        </div>
+        <div className="hidden flex-1 sm:block" aria-hidden />
 
-        <div className="flex items-center space-x-4">
-          <a className="cursor-pointer text-base hover:text-gray-300 font-bold transition-colors duration-410 ease-in-out">
+        <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-4">
+          <a className="cursor-pointer text-xs font-bold transition-colors duration-410 ease-in-out hover:text-gray-300 sm:text-base">
             Login
           </a>
-          <a className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md font-bold transition-colors duration-410 ease-in-out">
+          <a className="cursor-pointer rounded-md bg-gray-100 px-2.5 py-1 text-xs font-bold transition-colors duration-410 ease-in-out hover:bg-gray-200 sm:px-4 sm:py-2 sm:text-base">
             Sign Up
           </a>
         </div>

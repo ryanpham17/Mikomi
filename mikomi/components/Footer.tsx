@@ -4,12 +4,14 @@
  */
 
 const Footer = () => (
-  <footer className="fixed bottom-0 bg-primary w-full text-white py-4">
-    <p className="text-center text-sm font-body">
+  <footer className="fixed bottom-0 z-40 w-full bg-primary px-3 py-3 text-white sm:px-4 sm:py-4">
+    <p className="text-center text-xs font-body leading-snug sm:text-sm">
       © {new Date().getFullYear()}{' '}
       <span className="font-bold">MIKOMI 見込み</span> — All rights reserved
     </p>
-    <p className="text-center text-sm font-body">Lists, Login, and Sign Up Coming Soon!</p>
+    <p className="mt-0.5 text-center text-xs font-body leading-snug sm:text-sm">
+      Lists, Login, and Sign Up Coming Soon!
+    </p>
   </footer>
 );
 

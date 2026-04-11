@@ -29,30 +29,32 @@ const Home = () => {
      * so any `bg-gradient-*` class on the same div would be overridden.
      */
     <div
-      className="w-full h-screen bg-cover bg-center"
+      className="min-h-screen w-full bg-cover bg-center"
       style={{
         backgroundImage: `linear-gradient(rgba(0,0,0,0.89), rgba(0, 0, 0, 1)), url(${homePic})`,
       }}
     >
       {/* `relative={false}` → Navbar uses `fixed` so it stays on screen while scrolling (if content grows). */}
       <Navbar relative={false} />
-      <div className="relative z-10 flex items-center justify-center min-h-screen font-body">
-        <div className="text-center max-w-4xl mx-auto space-y-8">
-          <h1 className="text-5xl md:text-6xl text-white font-extraBold leading-tight">
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-5 pb-32 pt-16 font-body sm:px-6 sm:pb-36 sm:pt-24 md:pt-28">
+        <div className="mx-auto w-full max-w-4xl space-y-5 text-center sm:space-y-8">
+          <h1 className="text-balance text-2xl font-extraBold leading-snug text-white sm:text-4xl sm:leading-tight md:text-5xl lg:text-6xl">
             Find Your Next Favorite Manga
           </h1>
 
-          <SearchBar query={searchQuery} onSearch={handleSearch} />
+          <div className="mx-auto w-full max-w-[min(100%,22rem)] sm:max-w-2xl">
+            <SearchBar query={searchQuery} onSearch={handleSearch} />
+          </div>
 
-          <div className="max-w-3xl mx-auto space-y-2">
-            <p className="text-lg md:text-xl text-gray-400 leading-relaxed">
-              Welcome to <span className="text-white font-semibold">MIKOMI 見込み</span> — your personal
+          <div className="mx-auto max-w-3xl space-y-1.5 sm:space-y-3">
+            <p className="text-pretty text-sm leading-relaxed text-gray-400 sm:text-lg md:text-xl">
+              Welcome to <span className="font-semibold text-white">MIKOMI 見込み</span> — your personal
               manga matchmaker! Enter a manga
             </p>
-            <p className="text-lg md:text-xl text-gray-400 leading-relaxed">
+            <p className="text-pretty text-sm leading-relaxed text-gray-400 sm:text-lg md:text-xl">
               you love, and we’ll use AI to find titles with the highest similarity scores.
             </p>
-            <p className="text-lg md:text-xl text-gray-400 leading-relaxed">
+            <p className="text-pretty text-sm leading-relaxed text-gray-400 sm:text-lg md:text-xl">
               Discover your next favorite series, tailored just for you ツ
             </p>
           </div>

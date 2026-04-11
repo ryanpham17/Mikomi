@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { Star } from 'lucide-react';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { ArrowLeft, Star } from 'lucide-react';
 import { getMangaById } from '../src/api/Kitsu';
 import Navbar from './Navbar';
 import Footer from './Footer';
+import searchPic from './images/searchPic.jpeg';
+
 
 interface PosterImage {
     small?: string;
@@ -42,11 +44,13 @@ interface KitsuSingleResponse {
     included?: includedGenre[];
 }
 
+type MangaLocationState = { returnTo?: string };
+
 function genreNamesFromResponse(resource: MangaResource, included: includedGenre[]): string[] {
     const map = new Map<string, string>();
     for (const g of included ?? []) {
         if (g.type === 'genres' && g.attributes?.name) {
-            map.set('${g.type}:${g.id}', g.attributes.name);
+            map.set(`${g.type}:${g.id}`, g.attributes.name);
         }
     }
     const refs = resource.relationships?.genres?.data ?? [];
@@ -55,6 +59,9 @@ function genreNamesFromResponse(resource: MangaResource, included: includedGenre
 
 const Manga: React.FC = () => {
     const { mangaId } = useParams<{ mangaId: string }>();
+    const location = useLocation();
+    const returnTo =
+        (location.state as MangaLocationState | null)?.returnTo ?? '/search';
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [resource, setResource] = useState<MangaResource | null>(null);
@@ -117,53 +124,76 @@ const Manga: React.FC = () => {
   const starFillTotal = ratingShare * 5;
 
   return (
-    <div className="bg-black w-full min-h-screen font-body text-white pb-16">
+    <div className="min-h-screen w-full bg-black pb-32 font-body text-white max-[380px]:pb-40 sm:pb-36">
       <Navbar relative={true} />
-      <div className="max-w-5xl mx-auto px-6 pt-8">
+      <div
+        className="mx-auto w-full bg-cover bg-center px-5 pb-3 pt-16 sm:h-48 sm:px-6 sm:pb-6 sm:pt-24 md:h-56 md:pt-28 lg:h-64 lg:pt-32"
+        style={{
+          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.89), rgba(0, 0, 0, 1)), url(${searchPic})`,
+        }}
+      >
+      </div>
+      <div className="mx-auto max-w-5xl px-5 pt-3 sm:px-6 sm:pt-6">
+          <Link
+            to={returnTo}
+            className="mb-3 inline-flex cursor-pointer items-center gap-1.5 text-xs font-bold text-white transition-colors duration-410 ease-in-out hover:text-gray-300 sm:mb-6 sm:gap-2 sm:text-base"
+          >
+            <ArrowLeft className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" aria-hidden />
+            Back to results
+          </Link>
           {loading && <p className="text-white text-center">Loading…</p>}
           {!loading && error && <p className="text-red-400 text-center">{error}</p>}
           {!loading && !error && resource && (
-            <div className="flex flex-col gap-8 md:flex-row md:items-start">
-              <div className="w-full max-w-xs mx-auto md:mx-0 md:w-72 shrink-0">
+            <div className="flex min-w-0 flex-col gap-5 sm:gap-8 md:flex-row md:items-start">
+              <div className="mx-auto w-full max-w-[11rem] shrink-0 sm:max-w-xs md:mx-0 md:w-72">
                 {posterUrl ? (
                   <img
                     src={posterUrl}
                     alt={title}
-                    className="w-full rounded-lg object-cover aspect-[2/3] shadow-lg"
+                    className="aspect-[2/3] w-full rounded-lg object-cover shadow-lg"
                   />
                 ) : (
-                  <div className="w-full aspect-[2/3] rounded-lg bg-gray-800 grid place-items-center text-6xl">
+                  <div className="grid aspect-[2/3] w-full place-items-center rounded-lg bg-gradient-to-br from-gray-300 to-gray-100 text-4xl sm:text-6xl">
                     📚
                   </div>
                 )}
               </div>
 
 
-              <div className="min-w-0 flex-1 space-y-4">
-                <h1 className="text-3xl font-bold">{title}</h1>
+              <div className="min-w-0 flex-1 space-y-3 sm:space-y-5">
+                <h1 className="text-balance break-words text-xl font-extrabold leading-snug sm:text-3xl md:text-4xl">
+                  {title}
+                </h1>
 
 
-                {genreNames.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {genreNames.map((g) => (
-                      <span
-                        key={g}
-                        className="px-2 py-1 rounded text-xs font-medium bg-gray-800 text-gray-200"
-                      >
-                        {g}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <div>
+                  <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400 sm:mb-2 sm:text-sm">
+                    Genres
+                  </h2>
+                  {genreNames.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {genreNames.map((g, i) => (
+                        <span
+                          key={`${g}-${i}`}
+                          className="rounded bg-white px-1.5 py-0.5 text-[0.65rem] font-medium text-black sm:px-2 sm:py-1 sm:text-xs"
+                        >
+                          {g}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500 sm:text-sm">No genres listed.</p>
+                  )}
+                </div>
 
 
-                <div className="flex items-center gap-0.5">
+                <div className="flex flex-wrap items-center gap-0.5">
                   {Array.from({ length: 5 }).map((_, i) => {
                     const portion = Math.min(1, Math.max(0, starFillTotal - i));
                     return (
-                      <div key={i} className="relative h-5 w-5 shrink-0 text-yellow-400">
+                      <div key={i} className="relative h-4 w-4 shrink-0 text-yellow-400 sm:h-5 sm:w-5">
                         <Star
-                          className="absolute inset-0 h-5 w-5 fill-none stroke-white text-white"
+                          className="absolute inset-0 h-4 w-4 fill-none stroke-white text-white sm:h-5 sm:w-5"
                           strokeWidth={1.5}
                         />
                         <div
@@ -172,24 +202,26 @@ const Manga: React.FC = () => {
                           aria-hidden
                         >
                           <Star
-                            className="absolute left-0 top-0 h-5 w-5 fill-current stroke-current text-yellow-400"
+                            className="absolute left-0 top-0 h-4 w-4 fill-current stroke-current text-yellow-400 sm:h-5 sm:w-5"
                             strokeWidth={1.5}
                           />
                         </div>
                       </div>
                     );
                   })}
-                  <span className="font-bold text-sm ml-2 text-white">
+                  <span className="ml-2 text-xs font-bold text-white sm:text-sm">
                     {formatRating(attrs?.averageRating ?? null)}/10
                   </span>
                 </div>
 
 
                 <div>
-                  <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                  <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400 sm:mb-2 sm:text-sm">
                     Synopsis
                   </h2>
-                  <p className="text-white leading-relaxed whitespace-pre-wrap">{synopsis}</p>
+                  <p className="text-pretty whitespace-pre-wrap break-words text-xs leading-relaxed text-white sm:text-base">
+                    {synopsis}
+                  </p>
                 </div>
               </div>
             </div>

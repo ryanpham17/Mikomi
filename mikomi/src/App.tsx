@@ -40,7 +40,7 @@ const router = createBrowserRouter([
 
 function App() {
   return (
-    <div className="App">
+    <div className="App min-h-screen overflow-x-hidden">
       <RouterProvider router={router} />
     </div>
   );
