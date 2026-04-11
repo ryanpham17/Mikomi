@@ -138,7 +138,7 @@ const MangaCard: React.FC<MangaCardProps> = ({ manga }) => {
 
   /**
    * Kitsu’s `averageRating` is on a 0–100-style scale in the raw API; we show a /10 style label.
-   * Example: "82" → 8.2/10 (see star row uses `normalizedRating` = value/10 for the 5-star UI).
+   * Example: "82" → 8.2/10; stars fill in proportion to that score (0–100 → five stars).
    */
   const formatRating = (rating: string) => {
     if (!rating) return 'No Rating';
@@ -156,8 +156,9 @@ const MangaCard: React.FC<MangaCardProps> = ({ manga }) => {
     return colors[index % colors.length];
   };
 
-  /** 0–5 star scale for icon fill (half-star when fractional part ≥ 0.5). */
   const normalizedRating = parseFloat(averageRating || '0') / 10;
+  const ratingShare = Math.min(1, Math.max(0, normalizedRating / 10));
+  const starFillTotal = ratingShare * 5;
 
   /** Match the old sample layout: one compact row of pills (max 4 + optional “+N”). */
   const maxGenreChips = 4;
@@ -214,19 +215,26 @@ const MangaCard: React.FC<MangaCardProps> = ({ manga }) => {
 
         <p className="font-medium text-gray-500 text-sm mb-3">{truncateText(synopsis, 100)}</p>
 
-        <div className="flex items-center gap-1 text-yellow-400">
+        <div className="flex items-center gap-0.5">
           {Array.from({ length: 5 }).map((_, i) => {
-            const filled = i < Math.floor(normalizedRating);
-            const halfFilled =
-              i === Math.floor(normalizedRating) && normalizedRating % 1 >= 0.5;
-
+            const portion = Math.min(1, Math.max(0, starFillTotal - i));
             return (
-              <Star
-                key={i}
-                className={`h-4 w-4 ${
-                  filled ? 'fill-current' : halfFilled ? 'fill-current opacity-50' : ''
-                }`}
-              />
+              <div key={i} className="relative h-4 w-4 shrink-0 text-yellow-400">
+                <Star
+                  className="absolute inset-0 h-4 w-4 fill-none stroke-white text-white"
+                  strokeWidth={1.5}
+                />
+                <div
+                  className="absolute inset-y-0 left-0 overflow-hidden"
+                  style={{ width: `${portion * 100}%` }}
+                  aria-hidden
+                >
+                  <Star
+                    className="absolute left-0 top-0 h-4 w-4 fill-current stroke-current text-yellow-400"
+                    strokeWidth={1.5}
+                  />
+                </div>
+              </div>
             );
           })}
           <span className="font-bold text-sm ml-1">{formatRating(averageRating)}/10</span>
