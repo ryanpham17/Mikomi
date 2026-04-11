@@ -494,6 +494,7 @@ const SearchResultsPage: React.FC = () => {
     else next.set('page', String(page));
     const search = next.toString();
     navigate({ pathname: '/search', search: search ? `?${search}` : '', hash: '' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
