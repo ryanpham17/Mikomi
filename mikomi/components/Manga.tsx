@@ -141,7 +141,7 @@ const Manga: React.FC = () => {
             <ArrowLeft className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" aria-hidden />
             Back to results
           </Link>
-          {loading && <p className="text-white text-center">Loading…</p>}
+          {loading && <p className="text-white text-center">LOADING...</p>}
           {!loading && error && <p className="text-red-400 text-center">{error}</p>}
           {!loading && !error && resource && (
             <div className="flex min-w-0 flex-col gap-5 sm:gap-8 md:flex-row md:items-start">
